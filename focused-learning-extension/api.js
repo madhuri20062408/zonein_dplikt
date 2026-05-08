@@ -32,10 +32,16 @@ const apiFetch = async (endpoint, options = {}) => {
     });
 
     const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "API error");
+    if (!response.ok) {
+      // Don't log 401 errors as they are expected when logged out
+      if (response.status !== 401) {
+        console.error(`API Error [${endpoint}]:`, data.message || "API error");
+      }
+      throw new Error(data.message || "API error");
+    }
     return data;
   } catch (error) {
-    console.error(`API Error [${endpoint}]:`, error);
+    // Silently handle certain errors
     throw error;
   }
 };
@@ -73,11 +79,16 @@ const logout = async () => {
 // ─── Roadmap ───────────────────────────────────────────────────────────────────
 
 const getActiveRoadmap = async () => {
-  const roadmap = await apiFetch("/roadmap/active");
-  if (roadmap) {
-    await new Promise((resolve) => chrome.storage.local.set({ cachedRoadmap: roadmap }, resolve));
+  try {
+    const roadmap = await apiFetch("/roadmap/active");
+    if (roadmap) {
+      await new Promise((resolve) => chrome.storage.local.set({ cachedRoadmap: roadmap }, resolve));
+    }
+    return roadmap;
+  } catch (e) {
+    // Suppress error if no roadmap found or not authorized
+    return null;
   }
-  return roadmap;
 };
 
 // ─── Sessions ──────────────────────────────────────────────────────────────────

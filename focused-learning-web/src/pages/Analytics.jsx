@@ -37,6 +37,13 @@ const Analytics = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAllActivities, setShowAllActivities] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,7 +52,7 @@ const Analytics = ({ user }) => {
         const [sumRes, weekRes, monthRes, mapRes, actRes] = await Promise.all([
           fetchApi('/analytics/summary'),
           fetchApi('/analytics/weekly-hours'),
-          fetchApi('/analytics/monthly-hours'),
+          fetchApi(`/analytics/monthly-hours?month=${selectedMonth}&year=${selectedYear}`),
           fetchApi('/analytics/current-roadmap'),
           fetchApi('/analytics/recent-activity')
         ]);
@@ -61,7 +68,7 @@ const Analytics = ({ user }) => {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedMonth, selectedYear]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -83,7 +90,7 @@ const Analytics = ({ user }) => {
       {/* Greeting Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">
-          {getGreeting()}, {user?.firstName}! 👋
+          {getGreeting()}, {user?.name?.split(' ')[0] || 'Learner'}! 👋
         </h1>
         <p className="text-gray-400">Keep learning, keep growing.</p>
       </div>
@@ -149,8 +156,19 @@ const Analytics = ({ user }) => {
         <div className="bg-surface rounded-xl p-6 border border-card animate-fade-in flex flex-col h-full min-h-[350px]" style={{ animationDelay: '0.1s' }}>
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-white">Monthly Study Hours</h3>
-            <select className="bg-background border border-gray-800 text-xs text-gray-300 rounded px-2 py-1 outline-none">
-              <option>This Month</option>
+            <select 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="bg-background border border-gray-800 text-xs text-gray-300 rounded px-2 py-1 outline-none cursor-pointer hover:border-primary transition-colors"
+            >
+              {months.map((month, idx) => {
+                const isFuture = new Date(selectedYear, idx, 1) > new Date();
+                return (
+                  <option key={idx} value={idx} disabled={isFuture}>
+                    {month} {isFuture ? "(Locked)" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="h-64 w-full">

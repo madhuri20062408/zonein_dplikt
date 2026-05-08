@@ -40,7 +40,7 @@ function getTodayString() {
 function initializeStorage() {
   chrome.storage.local.get(null, (result) => {
     const today = getTodayString();
-    const isFocus = result.isFocusMode ?? true;
+    const isFocus = result.isFocusMode === true;
     
     const needsReset = result.lastResetDate && result.lastResetDate !== today;
     
@@ -93,6 +93,12 @@ async function startSession(videoTitle = "", videoUrl = "") {
   await chrome.storage.local.set({ currentSession });
 
   try {
+    const token = await getToken();
+    if (!token) {
+      console.log("Not logged in, skipping backend session start.");
+      return;
+    }
+
     const { cachedRoadmap } = await chrome.storage.local.get(["cachedRoadmap"]);
     const session = await startBackendSession(cachedRoadmap?._id, cachedRoadmap?.goal || videoTitle, videoTitle, videoUrl);
     if (session && session._id) {
@@ -100,7 +106,10 @@ async function startSession(videoTitle = "", videoUrl = "") {
       await chrome.storage.local.set({ currentSession });
     }
   } catch (e) {
-    console.error("Session Start Failed:", e);
+    // Only log if it's not a 401
+    if (e.message !== "Not authorized, no token") {
+      console.error("Session Start Failed:", e);
+    }
   }
 }
 
@@ -127,6 +136,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_FOCUS_MODE", isFocusMode: message.isFocusMode });
       });
     });
+  } else if (message.type === "LOGOUT") {
+    console.log("Remote logout triggered");
+    logout(); // This is the clearAuth() wrapper in api.js
   }
   sendResponse({ status: "ok" });
   return true;

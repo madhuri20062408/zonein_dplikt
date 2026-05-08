@@ -1,6 +1,6 @@
 console.log("ZONEIN CONTENT SCRIPT LOADED");
 
-let isFocusMode = true;
+let isFocusMode = false;
 let hasLoadedFilters = false;
 let focusMessageEl = null;
 let activeGoalKeywords = []; 
@@ -74,6 +74,9 @@ window.addEventListener("message", (event) => {
       if (isFocusMode) applyFilters();
       else removeFilters();
     }
+  } else if (event.data && event.data.type === "ZONEIN_LOGOUT") {
+    console.log("Logout message received from web app");
+    chrome.runtime.sendMessage({ type: "LOGOUT" });
   }
 });
 

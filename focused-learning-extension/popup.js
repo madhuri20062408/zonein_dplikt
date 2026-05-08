@@ -162,6 +162,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   logoutBtn.addEventListener("click", async () => {
     await logout();
+    // Clear input fields
+    loginEmail.value = "";
+    loginPassword.value = "";
+    regName.value = "";
+    regEmail.value = "";
+    regPassword.value = "";
     showAuth();
   });
 
@@ -169,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function loadLocalStats() {
     chrome.storage.local.get(["isFocusMode", "blockedCount", "todayWatchTime"], (result) => {
-      const isFocus = result.isFocusMode !== false;
+      const isFocus = result.isFocusMode === true;
       toggle.checked = isFocus;
       
       if (isFocus) {
