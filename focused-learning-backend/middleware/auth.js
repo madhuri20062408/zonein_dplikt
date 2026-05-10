@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const admin = require("../firebaseAdmin");
 
 const protect = async (req, res, next) => {
   let token;
@@ -9,6 +10,7 @@ const protect = async (req, res, next) => {
     req.headers.authorization.startsWith("Bearer")
   ) {
     token = req.headers.authorization.split(" ")[1];
+    console.log("🔑 Received Token (first 20 chars):", token.substring(0, 20) + "...");
   }
 
   if (!token) {
@@ -16,17 +18,47 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Attach user to request (exclude password)
-    req.user = await User.findById(decoded.id).select("-password");
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const { email, name, uid } = decodedToken;
 
-    if (!req.user) {
-      return res.status(401).json({ message: "User not found" });
+    // Find user by email or firebaseUid
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      console.log("Backend: Creating new user for:", email, name);
+      user = await User.create({
+        name: name || email.split('@')[0],
+        email,
+        password: Math.random().toString(36).slice(-10),
+        firebaseUid: uid
+      });
+    } else {
+      // If user exists but name is generic or missing, update it from token
+      if (name && (!user.name || user.name === email.split('@')[0] || user.name === 'Learner')) {
+        console.log("Backend: Syncing name for existing user:", user.email, "->", name);
+        user.name = name;
+        await user.save();
+      }
+      // Also ensure firebaseUid is linked
+      if (!user.firebaseUid) {
+        user.firebaseUid = uid;
+        await user.save();
+      }
     }
 
+    req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Not authorized, token failed" });
+    console.error("❌ Auth Middleware Error Details:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    let message = "Not authorized, token failed";
+    if (error.code === 'auth/id-token-expired') {
+      message = "Session expired, please login again";
+    }
+    return res.status(401).json({ message: `${message} (${error.message})` });
   }
 };
 

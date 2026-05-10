@@ -26,7 +26,7 @@ const noteSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["ai_summary", "manual_note"],
+      enum: ["ai_summary", "manual_note", "topic_notes"],
       default: "manual_note",
     },
     content: {

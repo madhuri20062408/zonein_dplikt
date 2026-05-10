@@ -6,6 +6,10 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
+const admin = require("firebase-admin");
+
+// Initialize Firebase Admin
+require("./firebaseAdmin");
 
 const app = express();
 const server = http.createServer(app);
@@ -29,10 +33,14 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/roadmap", require("./routes/roadmapRoutes"));
+app.use("/api/roadmap-web", require("./routes/roadmapWebRoutes"));
 app.use("/api/session", require("./routes/sessionRoutes"));
 app.use("/api/progress", require("./routes/progressRoutes"));
 app.use("/api/analytics", require("./routes/analyticsWebRoutes"));
 app.use("/api/sessions", require("./routes/sessionsWebRoutes"));
+app.use("/api/sessions-web", require("./routes/sessionsWebRoutes"));
+app.use("/api/notes", require("./routes/notesRoutes"));
+app.use("/api/profile", require("./routes/profileRoutes"));
 
 // Socket.io for study session timer sync
 const studySessionNamespace = io.of("/study-session");

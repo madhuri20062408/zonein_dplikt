@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Disc, Timer, Play, Pause, Square } from 'lucide-react';
+import { Calendar, Clock, Disc, Timer, Play, Pause, Square, Trash2, CheckCircle, Circle } from 'lucide-react';
 import SessionModal from '../components/SessionModal';
 import { fetchApi } from '../api';
 
@@ -100,6 +100,29 @@ const StudySessions = () => {
     }
   };
 
+  const handleDeleteSession = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this study session from history?")) return;
+    try {
+      await fetchApi(`/sessions/${id}`, { method: 'DELETE' });
+      fetchData();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const toggleSubtopic = async (index, isCompleted) => {
+    if (!activeSession) return;
+    try {
+      const updated = await fetchApi(`/sessions/${activeSession._id}/subtopic`, {
+        method: 'PATCH',
+        body: { index, isCompleted }
+      });
+      setActiveSession(updated);
+    } catch (err) {
+      console.error("Failed to update subtopic", err);
+    }
+  };
+
   const formatTime = (totalSeconds) => {
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
@@ -177,15 +200,46 @@ const StudySessions = () => {
                 <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">Duration</th>
                 <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Distractions Blocked</th>
                 <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Focus Score</th>
+                <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {activeSession && page === 1 && (
+               {activeSession && page === 1 && (
                 <tr className="bg-primary/10 border-l-4 border-primary hover:bg-primary/15 transition-colors">
                   <td className="py-4 px-6 text-sm font-bold text-primaryLight">
                     Active Now
                   </td>
-                  <td className="py-4 px-6 text-sm font-medium text-white">{activeSession.goal || 'General Study'}</td>
+                  <td className="py-4 px-6 text-sm font-medium text-white">
+                    <div className="flex flex-col gap-3">
+                      <span className="font-bold">{activeSession.goal || 'General Study'}</span>
+                      {activeSession.subtopics && activeSession.subtopics.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                            <span>Progress</span>
+                            <span>{Math.round((activeSession.subtopics.filter(s => s.isCompleted).length / activeSession.subtopics.length) * 100)}%</span>
+                          </div>
+                          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-primary transition-all duration-500" 
+                              style={{ width: `${(activeSession.subtopics.filter(s => s.isCompleted).length / activeSession.subtopics.length) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {activeSession.subtopics.map((st, i) => (
+                              <button 
+                                key={i}
+                                onClick={() => toggleSubtopic(i, !st.isCompleted)}
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-all border ${st.isCompleted ? 'bg-primary/20 border-primary/40 text-primaryLight' : 'bg-white/5 border-white/10 text-gray-500'}`}
+                              >
+                                {st.isCompleted ? <CheckCircle className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+                                {st.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td className="py-4 px-6 text-sm font-mono text-primaryLight tracking-wider flex items-center gap-3">
                     <span className="w-16">{formatTime(elapsedSeconds)}</span>
                     <button onClick={togglePause} className="p-1.5 rounded bg-surface hover:bg-card border border-gray-700 text-gray-300 transition-colors" title={activeSession.isPaused ? 'Resume' : 'Pause'}>
@@ -197,6 +251,7 @@ const StudySessions = () => {
                   </td>
                   <td className="py-4 px-6 text-sm text-gray-300 text-center">-</td>
                   <td className="py-4 px-6 text-center">-</td>
+                  <td className="py-4 px-6 text-right">-</td>
                 </tr>
               )}
               {history.map((session, idx) => (
@@ -211,6 +266,15 @@ const StudySessions = () => {
                     <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full border text-xs font-bold ${getScoreColor(session.focusScore)}`}>
                       {session.focusScore}%
                     </span>
+                  </td>
+                  <td className="py-4 px-6 text-right">
+                    <button 
+                      onClick={() => handleDeleteSession(session._id)}
+                      className="p-2 text-gray-600 hover:text-red-500 transition-colors"
+                      title="Delete Session"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}

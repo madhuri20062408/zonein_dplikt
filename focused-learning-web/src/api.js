@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:5000/api";
+const API_URL = "http://localhost:5000/api";
 
 export const fetchApi = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
@@ -9,10 +9,16 @@ export const fetchApi = async (endpoint, options = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const config = {
     ...options,
     headers,
-  });
+  };
+
+  if (config.body && typeof config.body === "object") {
+    config.body = JSON.stringify(config.body);
+  }
+
+  const response = await fetch(`${API_URL}${endpoint}`, config);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

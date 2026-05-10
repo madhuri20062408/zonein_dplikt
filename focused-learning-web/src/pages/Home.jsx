@@ -57,12 +57,12 @@ const Home = ({ user }) => {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-4 animate-fade-in overflow-hidden">
+    <div className="max-w-6xl mx-auto py-12 px-4 animate-fade-in overflow-hidden relative">
       {/* Hero Section */}
       <div className="text-center mb-24 relative">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primaryLight text-xs font-bold mb-6 tracking-wider uppercase">
           <Zap className="w-3 h-3" />
-          Welcome to the Future of Learning
+          Ready for another productive session?
         </div>
         <h1 className="text-5xl font-extrabold text-white mb-6 tracking-tight">
           Master Any Topic with <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primaryLight">ZoneIn</span>
@@ -71,12 +71,12 @@ const Home = ({ user }) => {
           The ultimate companion for focused study sessions. Track your progress, block distractions, and achieve your learning goals faster than ever.
         </p>
         
-        <div className="mt-10 flex items-center justify-center gap-4">
+        <div className="mt-10 flex items-center justify-center gap-6">
           <button 
             onClick={() => navigate('/analytics')}
-            className="px-8 py-3 bg-primary hover:bg-primaryDark text-white font-bold rounded-xl transition-all transform hover:scale-105 hover:shadow-xl hover:shadow-primary/40 flex items-center gap-2"
+            className="px-10 py-4 bg-primary hover:bg-primaryDark text-white font-bold rounded-2xl transition-all transform hover:scale-105 hover:shadow-xl hover:shadow-primary/40 flex items-center gap-2 text-lg shadow-lg"
           >
-            Get Started <ArrowRight className="w-4 h-4" />
+            Go to Dashboard <ArrowRight className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -148,12 +148,12 @@ const Home = ({ user }) => {
         <div className="relative z-10">
           <h2 className="text-4xl font-bold text-white mb-6">Ready to level up your focus?</h2>
           <p className="text-xl text-gray-300 mb-10 max-w-xl mx-auto leading-relaxed">Join thousands of learners who are optimizing their study time with our AI-powered analytics.</p>
-          <button 
-            onClick={() => navigate('/study-sessions')}
-            className="px-12 py-4 bg-white text-background font-black rounded-xl hover:bg-gray-100 transition-all transform hover:scale-105 active:scale-95 shadow-xl shadow-black/20"
-          >
-            View Your Sessions
-          </button>
+            <button 
+              onClick={() => navigate(user ? '/analytics' : '/register')}
+              className="px-12 py-4 bg-white text-background font-black rounded-xl hover:bg-gray-100 transition-all transform hover:scale-105 active:scale-95 shadow-xl shadow-black/20"
+            >
+              {user ? 'View Dashboard' : 'Join Now'}
+            </button>
         </div>
         {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none group-hover:opacity-30 transition-opacity">

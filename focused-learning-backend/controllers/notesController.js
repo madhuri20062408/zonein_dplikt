@@ -22,7 +22,7 @@ const createNote = async (req, res, next) => {
       return res.status(400).json({ message: "Note content is required" });
     }
 
-    const note = await Note.create({
+    const noteData = {
       user: req.user._id,
       roadmap: roadmapId || null,
       topicId: topicId || null,
@@ -30,9 +30,21 @@ const createNote = async (req, res, next) => {
       videoTitle: videoTitle || "",
       type: type || "manual_note",
       content: finalContent,
-    });
+    };
 
-    res.status(201).json(note);
+    let note;
+    if (topicId) {
+      // Sync/Update if it's a topic note
+      note = await Note.findOneAndUpdate(
+        { user: req.user._id, topicId },
+        noteData,
+        { new: true, upsert: true }
+      );
+    } else {
+      note = await Note.create(noteData);
+    }
+
+    res.status(201).json({ success: true, note });
   } catch (error) {
     next(error);
   }
@@ -50,7 +62,7 @@ const getNotes = async (req, res, next) => {
     }
 
     const notes = await Note.find(query).sort({ createdAt: -1 });
-    res.json(notes);
+    res.json({ success: true, notes });
   } catch (error) {
     next(error);
   }

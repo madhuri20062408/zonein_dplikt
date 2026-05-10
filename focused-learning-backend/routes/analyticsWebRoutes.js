@@ -1,13 +1,34 @@
 const express = require("express");
 const router = express.Router();
 const Session = require("../models/Session");
-const RoadmapProgress = require("../models/RoadmapProgress");
+const Roadmap = require("../models/Roadmap");
 const RecentActivity = require("../models/RecentActivity");
+const User = require("../models/User");
+const { calculateStreak } = require("../services/streakService");
 const protect = require("../middleware/auth").protect;
 
 // GET /api/analytics/summary
 router.get("/summary", protect, async (req, res, next) => {
   try {
+    // Record daily visit if not already recorded
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const existingActivity = await RecentActivity.findOne({
+      user: req.user._id,
+      activityType: "dashboard_visit",
+      occurredAt: { $gte: today }
+    });
+
+    if (!existingActivity) {
+      await RecentActivity.create({
+        user: req.user._id,
+        activityType: "dashboard_visit",
+        title: "Daily Visit",
+        description: "Opened the learning dashboard",
+        occurredAt: new Date()
+      });
+    }
+
     const sessions = await Session.find({ user: req.user._id });
     
     // Calculate overall stats
@@ -57,12 +78,12 @@ router.get("/summary", protect, async (req, res, next) => {
     const weeklyFocusScoreChange = thisWeekAvgScore - lastWeekAvgScore;
 
     // Get roadmap topics completed count
-    const roadmaps = await RoadmapProgress.find({ user: req.user._id });
+    const roadmaps = await Roadmap.find({ user: req.user._id });
     let topicsCompleted = 0;
     let totalTopics = 0;
     roadmaps.forEach(r => {
-      topicsCompleted += (r.currentStep || 0);
-      totalTopics += (r.totalSteps || 0);
+      topicsCompleted += (r.completedTopics || 0);
+      totalTopics += (r.totalTopics || 0);
     });
 
     res.json({
@@ -173,14 +194,76 @@ router.get("/monthly-hours", protect, async (req, res, next) => {
   }
 });
 
-// GET /api/analytics/current-roadmap
+// GET /api/analytics/current-roadmap (Renamed/Updated to return all roadmaps with current topic info)
 router.get("/current-roadmap", protect, async (req, res, next) => {
   try {
-    const progress = await RoadmapProgress.findOne({ user: req.user._id }).sort({ lastAccessedAt: -1 });
-    if (!progress) {
-      return res.json({ title: "No active roadmap", currentStep: 0, totalSteps: 0 });
+    const roadmaps = await Roadmap.find({ user: req.user._id }).sort({ updatedAt: -1 });
+    
+    if (!roadmaps || roadmaps.length === 0) {
+      return res.json([]);
     }
-    res.json(progress);
+
+    const roadmapData = roadmaps.map(roadmap => {
+      // Find the first uncompleted topic
+      const currentTopic = roadmap.topics.find(t => !t.isCompleted) || roadmap.topics[roadmap.topics.length - 1];
+      const currentStep = roadmap.topics.findIndex(t => t._id === currentTopic._id) + 1;
+
+      return {
+        roadmapId: roadmap._id,
+        roadmapTitle: roadmap.goal,
+        currentTopicId: currentTopic._id,
+        currentTopicTitle: currentTopic.title,
+        currentStep: currentStep,
+        completedCount: roadmap.completedTopics,
+        totalSteps: roadmap.totalTopics
+      };
+    });
+
+    res.json(roadmapData);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/analytics/dashboard/stats (Used by extension)
+router.get("/dashboard/stats", protect, async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    
+    // Record daily visit if not already recorded
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const existingActivity = await RecentActivity.findOne({
+      user: userId,
+      activityType: "dashboard_visit",
+      occurredAt: { $gte: today }
+    });
+
+    if (!existingActivity) {
+      await RecentActivity.create({
+        user: userId,
+        activityType: "dashboard_visit",
+        title: "Daily Visit",
+        description: "Opened the learning dashboard (Extension)",
+        occurredAt: new Date()
+      });
+    }
+
+    const sessions = await Session.find({ user: userId });
+    const { currentStreak, dailyActivity } = await calculateStreak(userId);
+
+    let totalDistractions = 0;
+    sessions.forEach(s => {
+      totalDistractions += (s.distractionsBlocked || 0);
+    });
+
+    res.json({
+      streak: currentStreak,
+      totalBlocked: totalDistractions,
+      totalWatchTime: (user.totalStudyMinutes || 0) * 60, // Extension expects seconds
+      dailyActivity: dailyActivity
+    });
   } catch (error) {
     next(error);
   }
@@ -191,7 +274,7 @@ router.get("/recent-activity", protect, async (req, res, next) => {
   try {
     const activities = await RecentActivity.find({ user: req.user._id })
       .sort({ occurredAt: -1 })
-      .limit(30);
+      .limit(50);
     res.json(activities);
   } catch (error) {
     next(error);

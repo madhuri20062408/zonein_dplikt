@@ -1,12 +1,4 @@
-const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-
-// Generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-  });
-};
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -30,7 +22,7 @@ const register = async (req, res, next) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      token: generateToken(user._id),
+      token: "firebase-managed", // Token is managed by Firebase Client
     });
   } catch (error) {
     next(error);
@@ -59,7 +51,7 @@ const login = async (req, res, next) => {
       email: user.email,
       focusStreak: user.focusStreak,
       totalStudyMinutes: user.totalStudyMinutes,
-      token: generateToken(user._id),
+      token: "firebase-managed",
     });
   } catch (error) {
     next(error);
@@ -71,11 +63,37 @@ const login = async (req, res, next) => {
 // @access  Private
 const getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    res.json(req.user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Sync Firebase user with MongoDB
+// @route   POST /api/auth/sync
+// @access  Private
+const sync = async (req, res, next) => {
+  try {
+    const { firstName, lastName, preferredName, contact, state, country } = req.body;
+    
+    const user = req.user;
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (preferredName) user.preferredName = preferredName;
+    if (contact) user.contact = contact;
+    if (state) user.state = state;
+    if (country) user.country = country;
+    
+    // Update display name if first and last name are provided
+    if (firstName && lastName) {
+      user.name = `${firstName} ${lastName}`;
+    }
+
+    await user.save();
     res.json(user);
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { register, login, getMe };
+module.exports = { register, login, getMe, sync };

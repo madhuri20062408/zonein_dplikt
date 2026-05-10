@@ -6,14 +6,13 @@ const axios = require("axios");
  * generateFallbackRoadmap() returns a static structure.
  */
 const generateRoadmap = async (goal) => {
-  // If no OpenAI key is set, use fallback
-  if (!process.env.OPENAI_API_KEY) {
-    console.log("[AI] No OpenAI key found, using fallback roadmap.");
+  if (!process.env.GROQ_API_KEY) {
+    console.log("[AI] No Groq API key found, using fallback roadmap.");
     return generateFallbackRoadmap(goal);
   }
 
   const prompt = `
-You are an expert learning coach. Create a detailed step-by-step learning roadmap for the topic: "${goal}".
+You are an expert learning coach. Create a comprehensive, step-by-step learning roadmap for the goal: "${goal}".
 
 Return ONLY a JSON object in this exact format (no extra text):
 {
@@ -29,33 +28,42 @@ Return ONLY a JSON object in this exact format (no extra text):
 }
 
 Rules:
-- Include 8 to 12 topics, ordered from beginner to advanced
+- Include as many topics as necessary to cover the goal thoroughly (usually between 5 to 20 topics depending on complexity)
+- Topics must be ordered from beginner to advanced
 - Each topic should be a distinct, learnable unit
-- estimatedHours should be realistic (1-10 hours per topic)
+- estimatedHours should be realistic (1-12 hours per topic)
 - topics array must be ordered (order field starts at 1)
+- Do not add any conversational text, only the JSON.
 `;
 
   try {
     const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "gpt-3.5-turbo",
+        model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
       }
     );
 
-    const text = response.data.choices[0].message.content.trim();
+    let text = response.data.choices[0].message.content.trim();
+    // Handle potential markdown code blocks in AI response
+    if (text.startsWith("```json")) {
+      text = text.replace(/```json\n?/, "").replace(/\n?```/, "");
+    } else if (text.startsWith("```")) {
+      text = text.replace(/```\n?/, "").replace(/\n?```/, "");
+    }
+    
     const parsed = JSON.parse(text);
     return parsed;
   } catch (error) {
-    console.error("[AI] Roadmap generation failed:", error.message);
+    console.error("[AI] Roadmap generation failed:", error.response?.data || error.message);
     return generateFallbackRoadmap(goal);
   }
 };
@@ -65,8 +73,8 @@ Rules:
  * Pass the video title + description or transcript text.
  */
 const generateVideoSummary = async (videoTitle, videoContent) => {
-  if (!process.env.OPENAI_API_KEY) {
-    return `Summary for "${videoTitle}": AI summary is unavailable. Add your OpenAI API key to enable this feature.`;
+  if (!process.env.GROQ_API_KEY) {
+    return `Summary for "${videoTitle}": AI summary is unavailable. Add your Groq API key to enable this feature.`;
   }
 
   const prompt = `
@@ -79,16 +87,16 @@ Return ONLY a plain text bullet-point summary. Each point starts with "• ".
 
   try {
     const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "gpt-3.5-turbo",
+        model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.5,
-        max_tokens: 400,
+        max_tokens: 800,
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
       }
@@ -96,7 +104,7 @@ Return ONLY a plain text bullet-point summary. Each point starts with "• ".
 
     return response.data.choices[0].message.content.trim();
   } catch (error) {
-    console.error("[AI] Summary generation failed:", error.message);
+    console.error("[AI] Summary generation failed:", error.response?.data || error.message);
     return `Could not generate summary for "${videoTitle}".`;
   }
 };

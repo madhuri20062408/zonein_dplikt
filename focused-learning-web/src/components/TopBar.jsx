@@ -5,12 +5,22 @@ import { useLocation } from 'react-router-dom';
 const TopBar = ({ user }) => {
   const location = useLocation();
   const isSessions = location.pathname.startsWith('/study-sessions');
-
   const isHome = location.pathname === '/';
+  
   const title = isSessions ? "Study Sessions" : "Dashboard";
+  const firstName = user?.name?.split(' ')[0] || 'Learner';
+  
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
+  };
+  
   const subtitle = isSessions 
     ? "Track your study sessions and maintain consistency."
-    : "Welcomed back! Stay consistent and achieve your goals.";
+    : `${getGreeting()}, ${firstName}! Stay consistent and achieve your goals.`;
 
   return (
     <header className="h-20 bg-background border-b border-card px-8 flex items-center justify-between z-10 sticky top-0">
@@ -22,7 +32,7 @@ const TopBar = ({ user }) => {
       ) : (
         <div>
           <h2 className="text-xl font-bold text-white tracking-wide">
-            Welcome back, {user?.name?.split(' ')[0] || 'Learner'}!
+            Welcome back, {firstName}!
           </h2>
           <p className="text-sm text-gray-400 mt-1">Ready for another productive session?</p>
         </div>

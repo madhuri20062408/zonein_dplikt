@@ -5,6 +5,7 @@ const SubtopicProgress = require("../models/SubtopicProgress");
 const User = require("../models/User");
 const RecentActivity = require("../models/RecentActivity");
 const { calculateFocusScore } = require("../services/focusScoreService");
+const { calculateStreak } = require("../services/streakService");
 const protect = require("../middleware/auth").protect;
 
 // GET /api/sessions/summary
@@ -167,7 +168,11 @@ router.post("/:id/end", protect, async (req, res, next) => {
     // Update user stats
     const user = await User.findById(req.user._id);
     user.totalStudyMinutes += durationMins;
+    user.lastStudyDate = new Date();
     await user.save();
+    
+    // Update streak
+    await calculateStreak(req.user._id);
 
     res.json(session);
   } catch (error) {
@@ -208,6 +213,17 @@ router.patch("/:id/subtopic", protect, async (req, res, next) => {
     }
     
     res.json(session);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/sessions/:id
+router.delete("/:id", protect, async (req, res, next) => {
+  try {
+    const session = await Session.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+    if (!session) return res.status(404).json({ message: "Session not found" });
+    res.json({ success: true, message: "Session deleted" });
   } catch (error) {
     next(error);
   }

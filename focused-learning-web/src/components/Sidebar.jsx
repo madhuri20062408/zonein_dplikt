@@ -41,15 +41,15 @@ const Sidebar = () => {
       { name: "Home", path: "/", icon: Home },
     ]},
     { section: "LEARNING", items: [
-      { name: "Roadmap", path: "#", icon: BookOpen },
-      { name: "Notebook", path: "#", icon: NotebookIcon },
+      { name: "Roadmap", path: "/roadmaps", icon: BookOpen },
+      { name: "Notebook", path: "/notebook", icon: NotebookIcon },
     ]},
     { section: "ANALYTICS", items: [
       { name: "Learning Analytics", path: "/analytics", icon: BarChart2 },
       { name: "Study Sessions", path: "/study-sessions", icon: Clock },
     ]},
     { section: "ACCOUNT", items: [
-      { name: "Profile", path: "#", icon: User },
+      { name: "Profile", path: "/profile", icon: User },
       { name: "Settings", path: "#", icon: Settings },
       { name: "Contact Us", path: "#", icon: Mail },
       { name: "Sign Out", path: "#", icon: LogOut },

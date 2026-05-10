@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, CartesianGrid } from 'recharts';
 import { Clock, Target, ShieldAlert, CheckCircle, PlayCircle, Notebook, ChevronRight, BookOpen } from 'lucide-react';
 import { fetchApi } from '../api';
 
-const StatCard = ({ icon: Icon, title, value, subLabel, colorClass, isProgress }) => (
+const StatCard = ({ icon: Icon, title, value, subLabel, colorClass, isProgress, progress }) => (
   <div className="bg-surface rounded-xl p-6 border border-card glow-card animate-fade-in flex flex-col justify-between h-full">
     <div className="flex items-start gap-4">
       <div className={`p-3 rounded-full ${colorClass} bg-opacity-20 flex-shrink-0`}>
@@ -20,7 +21,7 @@ const StatCard = ({ icon: Icon, title, value, subLabel, colorClass, isProgress }
     {isProgress && (
       <div className="mt-4">
         <div className="w-full bg-background rounded-full h-1.5 mb-2 overflow-hidden">
-          <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '54%' }}></div>
+          <div className="bg-green-500 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progress || 0}%` }}></div>
         </div>
         <p className="text-xs font-medium text-green-400 text-right">{subLabel}</p>
       </div>
@@ -29,10 +30,11 @@ const StatCard = ({ icon: Icon, title, value, subLabel, colorClass, isProgress }
 );
 
 const Analytics = ({ user }) => {
+  const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
   const [weeklyHours, setWeeklyHours] = useState([]);
   const [monthlyHours, setMonthlyHours] = useState([]);
-  const [roadmap, setRoadmap] = useState(null);
+  const [roadmaps, setRoadmaps] = useState([]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,7 +61,7 @@ const Analytics = ({ user }) => {
         setSummary(sumRes);
         setWeeklyHours(weekRes);
         setMonthlyHours(monthRes);
-        setRoadmap(mapRes);
+        setRoadmaps(mapRes);
         setActivities(actRes);
       } catch (err) {
         setError(err.message);
@@ -70,11 +72,17 @@ const Analytics = ({ user }) => {
     fetchData();
   }, [selectedMonth, selectedYear]);
 
-  const getGreeting = () => {
+  const getGreetingData = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour >= 5 && hour < 12) {
+      return { greeting: 'Good morning', message: 'Ready to start your day with some focus?' };
+    } else if (hour >= 12 && hour < 17) {
+      return { greeting: 'Good afternoon', message: 'Keeping up the momentum?' };
+    } else if (hour >= 17 && hour < 21) {
+      return { greeting: 'Good evening', message: 'Gearing up for a productive evening?' };
+    } else {
+      return { greeting: 'Good night', message: 'Burning the midnight oil? Stay focused!' };
+    }
   };
 
   if (loading) {
@@ -89,10 +97,10 @@ const Analytics = ({ user }) => {
     <div className="space-y-6 pb-20 w-full max-w-[1800px] mx-auto px-2 lg:px-6">
       {/* Greeting Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          {getGreeting()}, {user?.name?.split(' ')[0] || 'Learner'}! 👋
+        <h1 className="text-3xl font-black text-white mb-2 tracking-tight">
+          {getGreetingData().greeting}, {user?.name?.split(' ')[0] || 'Learner'}! 👋
         </h1>
-        <p className="text-gray-400">Keep learning, keep growing.</p>
+        <p className="text-gray-400">{getGreetingData().message}</p>
       </div>
 
       {/* Stat Cards */}
@@ -101,30 +109,31 @@ const Analytics = ({ user }) => {
           icon={Clock}
           title="Total Study Hours"
           value={summary?.totalStudyHours}
-          subLabel="+2h 15m this week"
+          subLabel={`${summary?.weeklyStudyHoursChange >= 0 ? '▲' : '▼'} ${Math.abs(summary?.weeklyStudyHoursChange || 0).toFixed(1)}h this week`}
           colorClass="bg-primary text-primary"
         />
         <StatCard
           icon={Target}
           title="Focus Score"
-          value={`${summary?.focusScore} /100`}
-          subLabel="▲ 6 points this week"
+          value={`${summary?.focusScore || 0} /100`}
+          subLabel={`${summary?.weeklyFocusScoreChange >= 0 ? '▲' : '▼'} ${Math.abs(summary?.weeklyFocusScoreChange || 0)} points this week`}
           colorClass="bg-orange-500 text-orange-500"
         />
         <StatCard
           icon={ShieldAlert}
           title="Distractions Blocked"
-          value={summary?.distractionsBlocked}
-          subLabel="+4 this week"
+          value={summary?.distractionsBlocked || 0}
+          subLabel={`${summary?.weeklyDistractionsChange || 0} this week`}
           colorClass="bg-red-500 text-red-500"
         />
         <StatCard
           icon={CheckCircle}
           title="Topics Completed"
-          value={`${summary?.topicsCompleted} / ${summary?.totalTopics}`}
-          subLabel="54% Completed"
+          value={`${summary?.topicsCompleted || 0} / ${summary?.totalTopics || 0}`}
+          subLabel={`${Math.round(((summary?.topicsCompleted || 0) / (summary?.totalTopics || 1)) * 100)}% Completed`}
           colorClass="bg-green-500 text-green-500"
           isProgress={true}
+          progress={((summary?.topicsCompleted || 0) / (summary?.totalTopics || 1)) * 100}
         />
       </div>
 
@@ -190,36 +199,57 @@ const Analytics = ({ user }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Continue Learning */}
         <div className="flex flex-col gap-6 h-full">
-          <div className="bg-surface rounded-xl p-6 border border-card animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <h3 className="text-lg font-bold text-white mb-6">Continue Learning</h3>
-            <div className="flex items-center gap-5 bg-background rounded-lg p-5 border border-gray-800">
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-6 h-6 text-primaryLight" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-white font-bold mb-1">{roadmap?.roadmapTitle || 'No active roadmap'}</h4>
-                <p className="text-sm text-gray-400 mb-3">Step {roadmap?.currentStep || 0} of {roadmap?.totalSteps || 0} - Arrays</p>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-surface h-2 rounded-full overflow-hidden">
-                    <div className="bg-primary h-full rounded-full" style={{ width: `${((roadmap?.currentStep||0) / (roadmap?.totalSteps||1)) * 100}%` }}></div>
+          <div className="bg-surface rounded-xl p-6 border border-card animate-fade-in flex-1 overflow-y-auto max-h-[400px]" style={{ animationDelay: '0.2s' }}>
+            <h3 className="text-lg font-bold text-white mb-6 sticky top-0 bg-surface z-10 py-1">Continue Learning</h3>
+            <div className="space-y-4">
+              {roadmaps.length > 0 ? (
+                roadmaps.map((rm) => (
+                  <div key={rm.roadmapId} className="flex items-center gap-5 bg-background rounded-lg p-5 border border-gray-800 hover:border-primary/50 transition-all group">
+                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/30 transition-colors">
+                      <BookOpen className="w-6 h-6 text-primaryLight" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-white font-bold mb-1 truncate max-w-[200px]">{rm.roadmapTitle}</h4>
+                      <p className="text-sm text-gray-400 mb-3">Step {rm.currentStep} of {rm.totalSteps} - <span className="text-primaryLight">{rm.currentTopicTitle}</span></p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 bg-surface h-2 rounded-full overflow-hidden">
+                          <div className="bg-primary h-full rounded-full transition-all duration-1000" style={{ width: `${(rm.completedCount / (rm.totalSteps || 1)) * 100}%` }}></div>
+                        </div>
+                        <span className="text-xs font-bold text-primaryLight">{Math.round((rm.completedCount / (rm.totalSteps || 1)) * 100)}%</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => navigate(`/roadmap/${rm.roadmapId}/topic/${rm.currentTopicId}`)}
+                      className="bg-primary hover:bg-primaryLight text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-primary/20 whitespace-nowrap"
+                    >
+                      Continue
+                    </button>
                   </div>
-                  <span className="text-xs font-bold text-primaryLight">{Math.round(((roadmap?.currentStep||0) / (roadmap?.totalSteps||1)) * 100)}%</span>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 text-sm">No active roadmaps found.</p>
+                  <button onClick={() => navigate('/roadmaps')} className="text-primary text-xs font-bold mt-2 hover:underline">Create a Roadmap</button>
                 </div>
-              </div>
-              <button className="bg-primary hover:bg-primaryLight text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-primary/20">
-                Continue
-              </button>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            {['Roadmap', 'Summary', 'Notebook'].map((item, idx) => (
-              <div key={idx} className="bg-surface rounded-xl p-4 border border-card cursor-pointer hover:border-primary/50 transition-colors group">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20">
-                  <BookOpen className="w-4 h-4 text-primaryLight" />
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { name: 'Roadmap', path: '/roadmaps', icon: BookOpen },
+              { name: 'Notebook', path: '/notebook', icon: Notebook }
+            ].map((item, idx) => (
+              <div 
+                key={idx} 
+                onClick={() => navigate(item.path)}
+                className="bg-surface rounded-xl p-6 border border-card cursor-pointer hover:border-primary/50 transition-all group flex flex-col items-center text-center glow-card"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all">
+                  <item.icon className="w-6 h-6 text-primaryLight" />
                 </div>
-                <h4 className="text-white font-medium text-sm mb-1">{item}</h4>
-                <p className="text-xs text-gray-500">View your {item.toLowerCase()}</p>
+                <h4 className="text-white font-black text-sm mb-1">{item.name}</h4>
+                <p className="text-xs text-gray-500">View your {item.name.toLowerCase()}</p>
               </div>
             ))}
           </div>
@@ -236,8 +266,8 @@ const Analytics = ({ user }) => {
               {showAllActivities ? "Show Less" : "View All"}
             </button>
           </div>
-          <div className={`flex-1 pr-2 space-y-4 custom-scrollbar ${showAllActivities ? 'overflow-y-auto' : 'overflow-hidden'}`}>
-            {activities.slice(0, showAllActivities ? activities.length : 4).map((act) => (
+          <div className="flex-1 pr-2 space-y-4 custom-scrollbar overflow-y-auto">
+            {activities.slice(0, showAllActivities ? activities.length : 10).map((act) => (
               <div key={act._id} className="flex items-center justify-between group cursor-pointer p-2 rounded-lg hover:bg-background transition-colors">
                 <div className="flex items-center gap-4">
                   <div className={`p-2 rounded-lg ${act.activityType === 'watched' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}>
@@ -266,7 +296,6 @@ const Analytics = ({ user }) => {
                     </div>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-primaryLight transition-colors" />
               </div>
             ))}
           </div>

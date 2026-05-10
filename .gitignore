@@ -4,6 +4,7 @@
 focused-learning-backend/node_modules/
 focused-learning-backend/.env
 focused-learning-backend/*.log
+focused-learning-backend/serviceAccount.json
 
 # Web Frontend
 focused-learning-web/node_modules/

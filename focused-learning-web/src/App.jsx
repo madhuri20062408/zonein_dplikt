@@ -7,6 +7,12 @@ import Analytics from './pages/Analytics';
 import StudySessions from './pages/StudySessions';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import RoadmapList from './pages/roadmap/RoadmapList';
+import RoadmapDetail from './pages/roadmap/RoadmapDetail';
+import TopicDetail from './pages/roadmap/TopicDetail';
+import Notebook from './pages/Notebook';
+import Profile from './pages/Profile';
+import Landing from './pages/Landing';
 import { fetchApi } from './api';
 import { Lock, Zap, ArrowRight, ExternalLink } from 'lucide-react';
 
@@ -128,25 +134,31 @@ function App() {
           <Route path="/login" element={!user ? <Login setUser={setUser} /> : <Navigate to="/" />} />
           <Route path="/register" element={!user ? <Register setUser={setUser} /> : <Navigate to="/" />} />
           
-          {/* Protected Routes */}
           <Route path="*" element={
             <div className="flex h-screen bg-background overflow-hidden relative w-full">
               {user && <Sidebar />}
               <div className="flex flex-col flex-1 overflow-hidden">
-                <TopBar user={user} />
-                <main className="flex-1 overflow-y-auto p-6 scroll-smooth">
-                  {user ? (
-                    <Routes>
-                      <Route path="/" element={<Home user={user} />} />
-                      <Route path="/analytics" element={<Analytics user={user} />} />
-                      <Route path="/study-sessions" element={<StudySessions user={user} />} />
+                {user && <TopBar user={user} />}
+                <main className={`flex-1 overflow-y-auto scroll-smooth ${!user ? '' : 'p-6'}`}>
+                  <Routes>
+                    <Route path="/" element={user ? <Home user={user} /> : <Landing />} />
+                    
+                    {/* Protected Routes - only accessible if user is logged in */}
+                    {user ? (
+                      <>
+                        <Route path="/analytics" element={<Analytics user={user} />} />
+                        <Route path="/study-sessions" element={<StudySessions user={user} />} />
+                        <Route path="/roadmaps" element={<RoadmapList user={user} />} />
+                        <Route path="/roadmap/:roadmapId" element={<RoadmapDetail />} />
+                        <Route path="/roadmap/:roadmapId/topic/:topicId" element={<TopicDetail />} />
+                        <Route path="/notebook" element={<Notebook />} />
+                        <Route path="/profile" element={<Profile user={user} />} />
+                      </>
+                    ) : (
                       <Route path="*" element={<Navigate to="/" />} />
-                    </Routes>
-                  ) : (
-                    <div className="h-full flex items-center justify-center">
-                      <AuthOverlay />
-                    </div>
-                  )}
+                    )}
+                    <Route path="*" element={<Navigate to="/" />} />
+                  </Routes>
                 </main>
               </div>
             </div>

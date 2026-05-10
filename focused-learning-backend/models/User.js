@@ -8,6 +8,12 @@ const userSchema = new mongoose.Schema(
       required: [true, "Name is required"],
       trim: true,
     },
+    firstName: String,
+    lastName: String,
+    preferredName: String,
+    contact: String,
+    state: String,
+    country: String,
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -17,8 +23,12 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
       minlength: 6,
+    },
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true, // Allow multiple nulls for legacy users
     },
     totalStudyMinutes: {
       type: Number,
@@ -46,7 +56,12 @@ userSchema.pre("save", async function (next) {
 
 // Compare entered password with hashed password
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  if (!this.password || !enteredPassword) return false;
+  try {
+    return await bcrypt.compare(enteredPassword, this.password);
+  } catch (e) {
+    return false;
+  }
 };
 
 module.exports = mongoose.model("User", userSchema);

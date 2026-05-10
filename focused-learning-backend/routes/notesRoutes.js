@@ -1,21 +1,13 @@
 const express = require("express");
-
 const router = express.Router();
+const { protect } = require("../middleware/auth");
+const { createNote, getNotes, deleteNote } = require("../controllers/notesController");
 
-// Save note
-router.post("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "Note saved",
-  });
-});
+router.use(protect);
 
-// Get notes
-router.get("/", (req, res) => {
-  res.json({
-    success: true,
-    notes: [],
-  });
-});
+router.post("/", createNote);
+router.get("/", getNotes);
+router.get("/:roadmapId", getNotes);
+router.delete("/:id", deleteNote);
 
 module.exports = router;

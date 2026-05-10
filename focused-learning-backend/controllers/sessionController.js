@@ -2,6 +2,7 @@ const Session = require("../models/Session");
 const User = require("../models/User");
 const Roadmap = require("../models/Roadmap");
 const { calculateFocusScore } = require("../services/focusScoreService");
+const { calculateStreak } = require("../services/streakService");
 const RecentActivity = require("../models/RecentActivity");
 
 // @desc    Start a new study session (called by extension when user opens YouTube)
@@ -29,12 +30,20 @@ const startSession = async (req, res, next) => {
       sessionSource: "extension"
     });
 
+    // Sanitize video title for better activity logs
+    let activityTitle = videoTitle || "Started Study Session";
+    if (activityTitle.toLowerCase() === "youtube") {
+      activityTitle = goal ? `Focused on ${goal}` : "Focused Learning Session";
+    } else if (videoTitle) {
+      activityTitle = `Watched: ${videoTitle}`;
+    }
+
     // Add to recent activity
     const RecentActivity = require("../models/RecentActivity");
     await RecentActivity.create({
       user: req.user._id,
       activityType: "watched",
-      title: videoTitle ? `Watched: ${videoTitle}` : "Started Study Session",
+      title: activityTitle,
       description: `Topic: ${goal || "General Focus"}`,
       videoUrl: videoUrl || "",
       occurredAt: new Date()
@@ -96,33 +105,21 @@ const startSession = async (req, res, next) => {
       occurredAt: new Date()
     });
 
-    // Update user's total study time and streak
+    // Update user's total study time
     const user = await User.findById(req.user._id);
     user.totalStudyMinutes += durationMinutes;
-
-    // Update focus streak
-    const today = new Date().toDateString();
-    const lastStudy = user.lastStudyDate
-      ? new Date(user.lastStudyDate).toDateString()
-      : null;
-    const yesterday = new Date(Date.now() - 86400000).toDateString();
-
-    if (lastStudy === today) {
-      // Already studied today, streak unchanged
-    } else if (lastStudy === yesterday) {
-      user.focusStreak += 1; // Consecutive day
-    } else {
-      user.focusStreak = 1; // Streak broken, restart
-    }
-
     user.lastStudyDate = new Date();
     await user.save();
 
+    // Recalculate streak using the service
+    const { currentStreak } = await calculateStreak(req.user._id);
+    user.focusStreak = currentStreak; // This is redundant as calculateStreak saves it, but for safety in the response:
+    
     res.json({
       session,
       userStats: {
         totalStudyMinutes: user.totalStudyMinutes,
-        focusStreak: user.focusStreak,
+        focusStreak: currentStreak,
       },
     });
   } catch (error) {
