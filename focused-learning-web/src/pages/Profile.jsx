@@ -802,12 +802,12 @@ const Profile = ({ user: initialUser, setUser: setGlobalUser }) => {
                                       let shadow = '';
                                       
                                       if (day.isFuture) bgColor = 'bg-card/20';
-                                      else if (day.count > 0 && day.count < 30) bgColor = 'bg-primary/20';
-                                      else if (day.count >= 30 && day.count < 60) bgColor = 'bg-primary/50';
-                                      else if (day.count >= 60 && day.count < 120) bgColor = 'bg-primary/80';
+                                      else if (day.count > 0 && day.count < 30) bgColor = 'bg-primary/40';
+                                      else if (day.count >= 30 && day.count < 60) bgColor = 'bg-primary/70';
+                                      else if (day.count >= 60 && day.count < 120) bgColor = 'bg-primary/90';
                                       else if (day.count >= 120) {
                                         bgColor = 'bg-primary';
-                                        shadow = 'shadow-[0_0_12px_rgba(124,58,237,0.5)]';
+                                        shadow = 'shadow-[0_0_15px_rgba(124,58,237,0.7)]';
                                       }
                                       
                                       return (
@@ -836,10 +836,10 @@ const Profile = ({ user: initialUser, setUser: setGlobalUser }) => {
                  <span>Less Activity</span>
                  <div className="flex gap-1.5 p-1.5 bg-card/30 rounded-lg">
                    <div className="w-[10px] h-[10px] rounded-[2px] bg-card"></div>
-                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/20"></div>
-                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/50"></div>
-                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/80"></div>
-                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary shadow-[0_0_8px_rgba(124,58,237,0.5)]"></div>
+                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/40"></div>
+                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/70"></div>
+                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/90"></div>
+                   <div className="w-[10px] h-[10px] rounded-[2px] bg-primary shadow-[0_0_10px_rgba(124,58,237,0.7)]"></div>
                  </div>
                  <span>More Activity</span>
                </div>
@@ -988,9 +988,9 @@ const Profile = ({ user: initialUser, setUser: setGlobalUser }) => {
           {/* Connected Accounts */}
           <div className="bg-surface border border-card rounded-[2.5rem] p-8 shadow-lg">
             <h3 className="text-xl font-bold mb-6">Connected Account</h3>
-            <div className="p-4 bg-card/30 border border-white/5 rounded-2xl mb-6 flex items-center justify-between">
+            <div className="p-4 bg-card/30 border border-white/5 rounded-2xl flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
+                <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
                   <Video className="w-6 h-6" />
                 </div>
                 <div>
@@ -998,11 +998,7 @@ const Profile = ({ user: initialUser, setUser: setGlobalUser }) => {
                   <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Connected</p>
                 </div>
               </div>
-              <Settings className="w-4 h-4 text-gray-600 cursor-pointer hover:text-white transition-colors" />
             </div>
-            <button className="w-full py-4 border border-white/5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-500/10 hover:text-red-400 transition-all">
-              Disconnect
-            </button>
           </div>
 
           {/* Danger Zone */}

@@ -28,7 +28,7 @@ const Dashboard = ({ user, setUser }) => {
   const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, message: "" });
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchStats = async (localBlocked, localWatchTime) => {
       try {
         const token = await new Promise(resolve => {
           if (typeof chrome !== 'undefined' && chrome.storage) {
@@ -38,6 +38,18 @@ const Dashboard = ({ user, setUser }) => {
           }
         });
         if (!token) return;
+
+        // First, push local stats to ensure backend is up to date
+        if (localBlocked !== undefined) {
+          await fetch("http://localhost:5000/api/analytics/sync-today-stats", {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ blockedCount: localBlocked, watchTimeSeconds: localWatchTime })
+          });
+        }
 
         const [statsRes, roadmapRes] = await Promise.all([
           fetch("http://localhost:5000/api/analytics/dashboard/stats", {
@@ -55,12 +67,21 @@ const Dashboard = ({ user, setUser }) => {
           setStats(prev => ({
             ...prev,
             streak: statsData.streak || prev.streak,
-            blocked: statsData.totalBlocked !== undefined ? statsData.totalBlocked : prev.blocked,
-            watchTimeSeconds: statsData.totalWatchTime !== undefined ? statsData.totalWatchTime : prev.watchTimeSeconds,
+            // Trust the backend as the source of truth after sync
+            blocked: statsData.totalBlocked ?? prev.blocked,
+            watchTimeSeconds: statsData.totalWatchTime ?? prev.watchTimeSeconds,
             dailyActivity: statsData.dailyActivity || prev.dailyActivity,
             activeRoadmap: roadmapData,
             loading: false
           }));
+          
+          // Update local storage to match backend truth
+          if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 
+              blockedCount: statsData.totalBlocked, 
+              todayWatchTime: statsData.totalWatchTime 
+            });
+          }
         }
       } catch (e) {
         console.error("Fetch Stats Error:", e);
@@ -69,7 +90,7 @@ const Dashboard = ({ user, setUser }) => {
     };
 
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.get(['blockedCount', 'todayWatchTime', 'weeklyActivity', 'isFocusMode'], (result) => {
+      chrome.storage.local.get(['blockedCount', 'todayWatchTime', 'dailyActivity', 'isFocusMode'], (result) => {
         let blocked = result.blockedCount || 0;
         let watchTime = result.todayWatchTime || 0;
         
@@ -91,7 +112,8 @@ const Dashboard = ({ user, setUser }) => {
           dailyActivity: result.dailyActivity || [],
           isFocusMode: result.isFocusMode !== false
         }));
-        fetchStats();
+        
+        fetchStats(blocked, watchTime);
       });
       
       const listener = (changes) => {
@@ -158,14 +180,13 @@ const Dashboard = ({ user, setUser }) => {
   };
 
   const formatWatchTimeDetailed = (totalSeconds) => {
-    if (!totalSeconds || totalSeconds === 0) return "0s";
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    const totalMinutes = Math.round(totalSeconds / 60);
+    if (totalMinutes === 0) return "0m";
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
     let res = "";
     if (hours > 0) res += `${hours}h `;
-    if (minutes > 0) res += `${minutes}m `;
-    if (seconds > 0 || res === "") res += `${seconds}s`;
+    res += `${minutes}m`;
     return res.trim();
   };
 
@@ -244,6 +265,21 @@ const Dashboard = ({ user, setUser }) => {
                       <div 
                         className="absolute right-0 top-6 w-28 bg-[#1a1c2e] border border-white/10 rounded-lg shadow-xl z-40 py-1 overflow-hidden"
                       >
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (typeof chrome !== 'undefined' && chrome.storage) {
+                              chrome.storage.local.set({ todayWatchTime: 0, blockedCount: 0 });
+                              setStats(s => ({ ...s, watchTimeSeconds: 0, blocked: 0 }));
+                              setShowRoadmapMenu(false);
+                            }
+                          }}
+                          className="w-full px-2 py-1.5 flex items-center gap-2 text-blue-400 hover:bg-blue-500/10 transition-colors font-bold text-[9px] text-left border-b border-white/5"
+                        >
+                          <Clock className="w-2.5 h-2.5 shrink-0" />
+                          RESET STATS
+                        </button>
                         <button 
                           onClick={(e) => {
                             e.preventDefault();

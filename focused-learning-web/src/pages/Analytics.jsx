@@ -29,6 +29,20 @@ const StatCard = ({ icon: Icon, title, value, subLabel, colorClass, isProgress, 
   </div>
 );
 
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#1a1c2e] border border-primary/30 p-3 rounded-lg shadow-2xl backdrop-blur-md">
+        <p className="text-gray-400 text-[10px] uppercase tracking-wider font-bold mb-1">{label}</p>
+        <p className="text-primaryLight text-sm font-black">
+          {payload[0].value.toFixed(1)} Hours
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const Analytics = ({ user }) => {
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
@@ -70,6 +84,47 @@ const Analytics = ({ user }) => {
       }
     };
     fetchData();
+
+    // Listen for real-time updates from the extension
+    const messageListener = (event) => {
+      // Check if message is from our extension
+      if (event.data && event.data.type === 'ZONEIN_STATS_UPDATE') {
+        const { blockedCount, watchTimeSeconds } = event.data;
+        const totalMinutes = Math.round(watchTimeSeconds / 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        setSummary(prev => prev ? ({
+          ...prev,
+          distractionsBlocked: blockedCount,
+          totalStudyHours: timeStr
+        }) : prev);
+      }
+    };
+
+    window.addEventListener('message', messageListener);
+    
+    // Also support chrome.runtime messages if we are running in an environment that supports it
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessageExternal) {
+      chrome.runtime.onMessageExternal.addListener((request) => {
+        if (request.type === 'ZONEIN_STATS_UPDATE') {
+          const { blockedCount, watchTimeSeconds } = request;
+          const totalMinutes = Math.round(watchTimeSeconds / 60);
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+          setSummary(prev => prev ? ({
+            ...prev,
+            distractionsBlocked: blockedCount,
+            totalStudyHours: timeStr
+          }) : prev);
+        }
+      });
+    }
+
+    return () => {
+      window.removeEventListener('message', messageListener);
+    };
   }, [selectedMonth, selectedYear]);
 
   const getGreetingData = () => {
@@ -154,7 +209,7 @@ const Analytics = ({ user }) => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a2a3e" />
                 <XAxis dataKey="day" stroke="#6b7280" tickLine={false} axisLine={false} />
                 <YAxis stroke="#6b7280" tickLine={false} axisLine={false} domain={[0, 'dataMax + 1']} />
-                <Tooltip cursor={{fill: '#1a1a2e'}} />
+                <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(124, 58, 237, 0.1)'}} />
                 <Bar dataKey="hours" fill="#7c3aed" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

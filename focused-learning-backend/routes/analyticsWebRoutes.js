@@ -64,9 +64,10 @@ router.get("/summary", protect, async (req, res, next) => {
 
     sessions.forEach(s => {
       const d = new Date(s.startTime);
-      // Sane caps: Max 8 hours per session, max 500 distractions
-      const sessionMinutes = Math.min(480, (s.durationMinutes || 0));
-      const sessionDistractions = Math.min(500, (s.distractionsBlocked || 0));
+      // Use watchTimeSeconds for higher precision if available, otherwise fallback to durationMinutes
+      const sessionSeconds = s.watchTimeSeconds || (s.durationMinutes * 60) || 0;
+      const sessionMinutes = Math.min(480, sessionSeconds / 60);
+      const sessionDistractions = Math.min(1000, (s.distractionsBlocked || 0));
       const sessionScore = (s.focusScore || 0);
       
       totalStudyMinutes += sessionMinutes;
@@ -108,13 +109,20 @@ router.get("/summary", protect, async (req, res, next) => {
       totalTopics += (r.totalTopics || 0);
     });
 
+    const formatTime = (mins) => {
+      const roundedMins = Math.round(mins);
+      const h = Math.floor(roundedMins / 60);
+      const m = roundedMins % 60;
+      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
+
     res.json({
       // We return today's stats as the primary values to satisfy the "reset to 0" requirement
-      totalStudyHours: `${Math.floor(todayStudyMinutes / 60)}h ${todayStudyMinutes % 60}m`,
-      allTimeStudyHours: `${Math.floor(totalStudyMinutes / 60)}h ${totalStudyMinutes % 60}m`,
+      totalStudyHours: formatTime(todayStudyMinutes),
+      allTimeStudyHours: formatTime(totalStudyMinutes),
       focusScore: todayAvgFocusScore || thisWeekAvgScore || 0, // Fallback to weekly if today is empty
       allTimeFocusScore: sessions.length > 0 ? Math.round(totalScore / sessions.length) : 0,
-      distractionsBlocked: todayDistractions,
+      distractionsBlocked: Math.min(1000, todayDistractions),
       allTimeDistractionsBlocked: totalDistractions,
       topicsCompleted,
       totalTopics: totalTopics || 1,
@@ -287,9 +295,10 @@ router.get("/dashboard/stats", protect, async (req, res, next) => {
     let todayMinutes = 0;
 
     sessions.forEach(s => {
-      // Sane caps: Max 8 hours per session, max 500 distractions
-      const sessionMinutes = Math.min(480, (s.durationMinutes || 0));
-      const sessionDistractions = Math.min(500, (s.distractionsBlocked || 0));
+      // Use watchTimeSeconds for higher precision
+      const sessionSeconds = s.watchTimeSeconds || (s.durationMinutes * 60) || 0;
+      const sessionMinutes = Math.min(480, sessionSeconds / 60);
+      const sessionDistractions = Math.min(1000, (s.distractionsBlocked || 0));
       
       totalDistractions += sessionDistractions;
       totalMinutes += sessionMinutes;
@@ -302,12 +311,59 @@ router.get("/dashboard/stats", protect, async (req, res, next) => {
 
     res.json({
       streak: currentStreak,
-      totalBlocked: todayDistractions, // Changed to today's blocked for extension dashboard
-      totalWatchTime: todayMinutes * 60, // Changed to today's watch time in seconds
+      totalBlocked: Math.min(1000, todayDistractions), // Capped to prevent legacy corruption
+      totalWatchTime: Math.min(16 * 3600, Math.round(todayMinutes * 60)), // Capped to 16 hours
       allTimeBlocked: totalDistractions,
-      allTimeWatchTime: totalMinutes * 60,
+      allTimeWatchTime: Math.round(totalMinutes * 60),
       dailyActivity: dailyActivity
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/analytics/sync-today-stats
+// Allows the extension to overwrite corrupted daily stats with clean local counts
+router.post("/sync-today-stats", protect, async (req, res, next) => {
+  try {
+    const { blockedCount, watchTimeSeconds } = req.body;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find the most recent session for today (active or not)
+    let session = await Session.findOne({
+      user: req.user._id,
+      startTime: { $gte: today }
+    }).sort({ startTime: -1 });
+
+    // Zero out distractions for all other sessions today to "reset" the aggregate corruption
+    await Session.updateMany(
+      { 
+        user: req.user._id, 
+        startTime: { $gte: today },
+        _id: { $ne: session._id }
+      },
+      { $set: { distractionsBlocked: 0 } }
+    );
+
+    if (!session) {
+      session = new Session({
+        user: req.user._id,
+        startTime: new Date(),
+        durationMinutes: 0,
+        distractionsBlocked: 0,
+        isActive: false,
+        videoTitle: "Sync Session",
+        videoUrl: "N/A"
+      });
+    }
+
+    session.distractionsBlocked = blockedCount; // Trust the extension's total
+    session.watchTimeSeconds = watchTimeSeconds;
+    session.durationMinutes = Math.round(watchTimeSeconds / 60);
+    await session.save();
+
+    res.json({ message: "Stats synchronized successfully" });
   } catch (error) {
     next(error);
   }

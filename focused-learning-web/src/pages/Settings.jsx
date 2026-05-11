@@ -5,14 +5,11 @@ import AccountSettings from './settings/AccountSettings';
 import AppearanceSettings from './settings/AppearanceSettings';
 import NotificationSettings from './settings/NotificationSettings';
 import PrivacySecurity from './settings/PrivacySecurity';
-import AdvancedSettings from './settings/AdvancedSettings';
 
 const tabs = [
   { id: 'account',       label: 'Account',       icon: User,    component: AccountSettings },
   { id: 'appearance',    label: 'Appearance',     icon: Palette, component: AppearanceSettings },
-  { id: 'notifications', label: 'Notifications',  icon: Bell,    component: NotificationSettings },
   { id: 'privacy',       label: 'Privacy',        icon: Shield,  component: PrivacySecurity },
-  { id: 'advanced',      label: 'Advanced',       icon: Zap,     component: AdvancedSettings },
 ];
 
 export default function Settings({ user, setUser }) {

@@ -48,7 +48,7 @@ router.get("/history", protect, async (req, res, next) => {
     const query = { user: req.user._id, isActive: false, sessionSource: "web" };
 
     const sessions = await Session.find(query)
-      .sort({ startTime: -1 }) // Sorted by startTime as requested
+      .sort({ startTime: 1 }) // Sorted by startTime (Ascending) as requested
       .skip(skip)
       .limit(limit);
       

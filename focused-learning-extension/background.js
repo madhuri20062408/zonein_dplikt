@@ -143,7 +143,13 @@ async function updateToolbar(isFocus) {
 // ─── Session Management ───────────────────────────────────────────────────────
 
 async function startSession(videoTitle = "", videoUrl = "") {
-  if (currentSession && currentSession.active) return;
+  // If same video is already active, ignore
+  if (currentSession && currentSession.active && currentSession.videoUrl === videoUrl) return;
+  
+  // If a different video is active, finalize it first
+  if (currentSession && currentSession.active) {
+    await endCurrentSession();
+  }
 
   const { blockedCount } = await chrome.storage.local.get(["blockedCount"]);
   
@@ -179,17 +185,25 @@ async function startSession(videoTitle = "", videoUrl = "") {
     }
   }
 }
+async function endCurrentSession() {
+  if (!currentSession || !currentSession.active) return;
+  try {
+    const { blockedCount } = await chrome.storage.local.get("blockedCount");
+    const sessionDistractions = Math.max(0, (blockedCount || 0) - (currentSession.startBlockedCount || 0));
+    await updateBackendSession(sessionDistractions, currentSession.watchTimeSeconds);
+  } catch (e) {
+    console.error("End Session Failed:", e);
+  } finally {
+    currentSession = null;
+    await chrome.storage.local.remove(["currentSession", "activeSessionId"]);
+  }
+}
 
 // ─── Heartbeat & Sync ────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "VIDEO_PLAYING") {
-    if (currentSession && currentSession.active && currentSession.videoTitle !== message.videoTitle) {
-      currentSession = null; 
-      startSession(message.videoTitle, message.videoUrl);
-    } else {
-      startSession(message.videoTitle, message.videoUrl);
-    }
+    startSession(message.videoTitle, message.videoUrl);
     if (sender.tab) activeYoutubeTabId = sender.tab.id;
   } else if (message.type === "PAGE_LOADED") {
     startSession("Browsing YouTube", message.url);
@@ -204,26 +218,56 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
   } else if (message.type === "LOGOUT") {
     logout();
+  } else if (message.type === "FORCE_SYNC_STATS") {
+    syncTodayStatsWithBackend(message.blockedCount, message.watchTimeSeconds);
   }
   sendResponse({ status: "ok" });
   return true;
 });
 
+// Track active YouTube tab more accurately
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if (tab.url && tab.url.includes("youtube.com")) {
+      activeYoutubeTabId = tab.id;
+    }
+  } catch (e) {}
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && tab.url.includes("youtube.com")) {
+    activeYoutubeTabId = tabId;
+  }
+});
+
 async function processHeartbeat(seconds, tabId) {
-  checkAndResetDailyStats(); // Ensure stats are reset if day changed
+  checkAndResetDailyStats(); 
+  
+  const storage = await chrome.storage.local.get(["blockedCount", "currentSession", "todayWatchTime"]);
   
   // Emergency cleanup for runaway counts in storage
-  const storage = await chrome.storage.local.get(["blockedCount", "currentSession", "todayWatchTime"]);
   if ((storage.blockedCount || 0) > 1000) {
     await chrome.storage.local.set({ blockedCount: 0 });
-    if (storage.currentSession) {
-      storage.currentSession.startBlockedCount = 0;
-      await chrome.storage.local.set({ currentSession: storage.currentSession });
-    }
   }
 
-  // Only process heartbeat for the active tab to prevent overcounting with multiple tabs
-  if (tabId && activeYoutubeTabId && tabId !== activeYoutubeTabId) return;
+  // If we don't have an active tab yet, or it's been a while, set the current one
+  if (tabId && (!activeYoutubeTabId || activeYoutubeTabId === null)) {
+    activeYoutubeTabId = tabId;
+  }
+  
+  // Only process heartbeat for the active tab to prevent overcounting.
+  // We relax this if only one tab is sending heartbeats.
+  if (tabId && activeYoutubeTabId && tabId !== activeYoutubeTabId) {
+    // If the "active" tab hasn't sent a heartbeat in 10s, switch to this one
+    const now = Date.now();
+    if (!globalThis.lastHeartbeatTime || (now - globalThis.lastHeartbeatTime > 10000)) {
+      activeYoutubeTabId = tabId;
+    } else {
+      return;
+    }
+  }
+  globalThis.lastHeartbeatTime = Date.now();
 
   const result = await chrome.storage.local.get(["watchTime", "todayWatchTime", "isFocusMode", "heartbeatCount", "currentSession"]);
   
@@ -248,6 +292,45 @@ async function processHeartbeat(seconds, tabId) {
   }
 
   await chrome.storage.local.set(updates);
+
+  // Sync with backend every 30 seconds
+  if (updates.heartbeatCount === 0) {
+    const { blockedCount } = await chrome.storage.local.get("blockedCount");
+    syncTodayStatsWithBackend(blockedCount, updates.todayWatchTime);
+  }
+
+  // Real-time broadcast to open web dashboard tabs
+  const { blockedCount } = await chrome.storage.local.get("blockedCount");
+  broadcastStatsToWebTabs(blockedCount, updates.todayWatchTime);
+}
+
+async function syncTodayStatsWithBackend(blockedCount, watchTimeSeconds) {
+  try {
+    const token = await getToken();
+    if (!token) return;
+    await fetch(`${API_BASE}/analytics/sync-today-stats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ blockedCount, watchTimeSeconds })
+    });
+  } catch (e) {
+    console.error("Stats Sync Failed:", e);
+  }
+}
+
+function broadcastStatsToWebTabs(blockedCount, watchTimeSeconds) {
+  chrome.tabs.query({ url: "http://localhost:5173/*" }, (tabs) => {
+    tabs.forEach((tab) => {
+      chrome.tabs.sendMessage(tab.id, {
+        type: "ZONEIN_STATS_UPDATE",
+        blockedCount,
+        watchTimeSeconds
+      }).catch(() => {}); 
+    });
+  });
 }
 
 // ─── Global State Listeners ──────────────────────────────────────────────────

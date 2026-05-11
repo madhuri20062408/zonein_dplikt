@@ -232,47 +232,7 @@ const PrivacySecurity = () => {
           </div>
         </section>
 
-        {/* Security Card */}
-        <section className="bg-card/30 backdrop-blur-xl border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -translate-y-16 translate-x-16 blur-3xl group-hover:bg-primary/10 transition-colors"></div>
-          
-          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <Lock className="w-5 h-5 text-primaryLight" />
-            Security
-          </h2>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-primaryLight" />
-                </div>
-                <div>
-                  <h3 className="text-white font-medium">Two-Factor Authentication</h3>
-                  <p className="text-xs text-gray-400">Add extra layer of security to your account</p>
-                </div>
-              </div>
-              <button className="px-6 py-2 bg-primary text-white rounded-xl hover:bg-primaryDark transition-all font-medium text-sm shadow-lg shadow-primary/20">
-                Enable
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-primaryLight" />
-                </div>
-                <div>
-                  <h3 className="text-white font-medium">Active Sessions</h3>
-                  <p className="text-xs text-gray-400">Manage devices where you are logged in</p>
-                </div>
-              </div>
-              <button className="flex items-center gap-2 px-6 py-2 border border-white/10 text-gray-400 rounded-xl hover:bg-white/5 transition-all font-medium text-sm">
-                View <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </section>
+        {/* Security section removed */}
       </div>
 
       {/* Delete Confirmation Modal */}

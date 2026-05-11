@@ -34,7 +34,7 @@ const StudySessions = ({ user }) => {
       setLoading(true);
       const [sumRes, histRes, privacyRes] = await Promise.all([
         fetchApi('/sessions/summary'),
-        fetchApi(`/sessions/history?page=${page}&limit=20`),
+        fetchApi(`/sessions/history?page=${page}&limit=4`),
         fetchApi('/privacy')
       ]);
       setSummary(sumRes);
@@ -243,8 +243,7 @@ const StudySessions = ({ user }) => {
                 <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th>
                 <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">Topic</th>
                 <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">Duration</th>
-                <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Distractions Blocked</th>
-                <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Focus Score</th>
+                <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Progress Score</th>
                 <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -312,8 +311,11 @@ const StudySessions = ({ user }) => {
                     </div>
                   </td>
 
-                  <td className="py-4 px-6 text-sm text-gray-300 text-center">-</td>
-                  <td className="py-4 px-6 text-center">-</td>
+                  <td className="py-4 px-6 text-center text-sm font-bold text-primaryLight">
+                    {activeSession.subtopics?.length > 0 
+                      ? `${Math.round((activeSession.subtopics.filter(s => s.isCompleted).length / activeSession.subtopics.length) * 100)}%`
+                      : '-'}
+                  </td>
                   <td className="py-4 px-6 text-right">-</td>
                 </tr>
               )}
@@ -353,10 +355,11 @@ const StudySessions = ({ user }) => {
                     </div>
                   </td>
                   <td className="py-4 px-6 text-sm text-gray-300">{session.durationMinutes}m</td>
-                  <td className="py-4 px-6 text-sm text-gray-300 text-center">{session.distractionsBlocked}</td>
                   <td className="py-4 px-6 text-center">
-                    <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full border text-xs font-bold ${getScoreColor(session.focusScore)}`}>
-                      {session.focusScore}%
+                    <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full border border-green-500/20 bg-green-500/10 text-green-500 text-xs font-bold">
+                      {session.subtopics?.length > 0 
+                        ? `${Math.round((session.subtopics.filter(s => s.isCompleted).length / session.subtopics.length) * 100)}%`
+                        : '0%'}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">
@@ -380,36 +383,30 @@ const StudySessions = ({ user }) => {
         </div>
         
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-gray-800 flex items-center justify-between">
+        <div className="p-8 border-t border-gray-800/50 flex flex-col items-center justify-center gap-4">
+          <span className="text-sm text-gray-500 font-bold uppercase tracking-[0.2em]">
+            Page <span className="text-primaryLight">{page}</span> of <span className="text-white">{Math.max(1, totalPages)}</span>
+          </span>
+          <div className="flex gap-4">
             <button 
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+              className="px-8 py-3 text-xs font-black uppercase tracking-widest transition-all rounded-2xl border border-white/10 disabled:opacity-20 hover:bg-white/5 active:scale-95"
             >
               Previous
             </button>
-            <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
             <button 
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+              disabled={page >= totalPages}
+              className="px-8 py-3 text-xs font-black uppercase tracking-widest transition-all rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primaryLight hover:shadow-primary/40 disabled:bg-gray-800 disabled:text-gray-600 disabled:shadow-none active:scale-95"
             >
               Next
             </button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-64 right-0 p-4 bg-background/80 backdrop-blur-md border-t border-card z-20">
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="w-full max-w-7xl mx-auto block bg-primary/20 hover:bg-primary/30 border border-primary/50 text-primaryLight font-bold py-3 rounded-xl transition-colors shadow-lg shadow-primary/10 flex items-center justify-center gap-2"
-        >
-          <Disc className="w-5 h-5" /> Start New Study Session
-        </button>
-      </div>
+
 
       {/* Session Modal */}
       <SessionModal 

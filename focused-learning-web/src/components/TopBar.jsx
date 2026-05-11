@@ -41,10 +41,7 @@ const TopBar = ({ user }) => {
       <div className="flex items-center gap-6">
 
 
-        <button className="relative p-2 text-gray-400 hover:text-white transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-background"></span>
-        </button>
+        {/* Notifications removed */}
 
         <div className="h-8 w-px bg-gray-800 mx-2"></div>
 

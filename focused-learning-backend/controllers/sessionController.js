@@ -190,7 +190,7 @@ const updateSessionProgress = async (req, res, next) => {
     }
 
     if (distractionsBlocked !== undefined) {
-      session.distractionsBlocked = Math.min(500, distractionsBlocked);
+      session.distractionsBlocked = Math.min(1000, distractionsBlocked);
     }
     
     if (watchTimeSeconds !== undefined) {
