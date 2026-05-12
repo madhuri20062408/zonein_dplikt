@@ -1,5 +1,5 @@
 // Background service worker for ZoneIn Extension
-const API_BASE = "https://zonein-dplikt.onrender.com/api";
+const API_BASE = "https://zonein-3.onrender.com/api";
 
 // ─── Shared Logic (formerly in api.js) ───────────────────────────────────────
 

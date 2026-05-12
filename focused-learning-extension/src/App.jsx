@@ -8,7 +8,7 @@ import VerifyEmail from './components/VerifyEmail';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const API_BASE = "https://zonein-dplikt.onrender.com";
+const API_BASE = "https://zonein-3.onrender.com";
 
 const App = () => {
   const [user, setUser] = useState(null);

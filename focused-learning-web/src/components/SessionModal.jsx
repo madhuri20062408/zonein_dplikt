@@ -3,7 +3,7 @@ import { X, Play, Square, Pause, Check } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { fetchApi } from '../api';
 
-const socket = io('https://zonein-dplikt.onrender.com/study-session');
+const socket = io('https://zonein-3.onrender.com/study-session');
 
 const SessionModal = ({ isOpen, onClose, onSessionComplete }) => {
   const [step, setStep] = useState(1); // 1: Setup, 2: Active, 3: Summary
